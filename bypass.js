@@ -133,15 +133,21 @@ async function bypass(url, onLog) {
     );
     log(`Ad-wall loaded: ${page.url()}`);
 
+    const isShortxHost = (hostname) =>
+      hostname.includes('linkshortx') || hostname.includes('urlshortx');
+
+    let level3Url = null;
+
     // 4 levels — each one submits a POST form that navigates to the next level page
     for (let i = 1; i <= 4; i++) {
+      // Save the level-3 page URL so we can retry level 4 from here if needed
+      if (i === 4) level3Url = page.url();
+
       await runLevel(page, i, log);
 
       // After the form submit, wait for the URL base to change AND next level widget to appear
       // (Google vignette ads add #google_vignette to the URL without a real navigation)
       const baseUrl = page.url().split('#')[0];
-      const isShortxHost = (hostname) =>
-        hostname.includes('linkshortx') || hostname.includes('urlshortx');
 
       try {
         await page.waitForFunction(
@@ -200,10 +206,36 @@ async function bypass(url, onLog) {
       }
     }
 
+    // If level 4 didn't land on a shortx page, retry it from the saved level-3 URL (no time limit)
+    if (!isShortxHost(new URL(page.url()).hostname) && level3Url) {
+      log('Level 4 failed — retrying from level 3 page (no time limit)…');
+      try {
+        await page.goto(level3Url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      } catch (e) { /* JS redirects may throw */ }
+
+      log('Waiting for level 4 ad-wall to load…');
+      await page.waitForFunction(
+        () => document.querySelector('.start_btn') !== null,
+        { timeout: 0 }
+      );
+
+      await runLevel(page, 4, log);
+
+      log('Waiting for shortx page after retry (no time limit)…');
+      await page.waitForFunction(
+        () => {
+          const h = window.location.hostname;
+          return h.includes('linkshortx') || h.includes('urlshortx');
+        },
+        { timeout: 0 }
+      );
+      log(`Retry succeeded: ${page.url()}`);
+    }
+
     // Wait for the shortx Get Link page (linkshortx.in or urlshortx.io)
     await page.waitForFunction(
       () => window.location.hostname.includes('linkshortx') || window.location.hostname.includes('urlshortx'),
-      { timeout: 40000 }
+      { timeout: 60000 }
     );
 
     log(`Get Link page: ${page.url()}`);
