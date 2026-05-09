@@ -51,6 +51,11 @@
     .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .status-text { color: var(--muted); font-size: .85rem; margin-top: 12px; min-height: 20px; }
+    .timer { display: none; align-items: center; gap: 8px; margin-top: 14px; }
+    .timer-label { color: var(--muted); font-size: .8rem; }
+    .timer-value { font-family: 'Consolas', monospace; font-size: 1.3rem; font-weight: 700; color: var(--accent2); letter-spacing: .05em; }
+    .timer-bar-wrap { width: 100%; height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .timer-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width .5s linear; }
   </style>
 </head>
 <body>
@@ -77,6 +82,14 @@
 
   <p class="status-text" id="statusText"></p>
 
+  <div class="timer" id="timerBox">
+    <span class="timer-label">Elapsed</span>
+    <span class="timer-value" id="timerValue">00:00</span>
+  </div>
+  <div class="timer-bar-wrap" id="timerBarWrap" style="display:none">
+    <div class="timer-bar" id="timerBar"></div>
+  </div>
+
   <div class="log-box" id="logBox"></div>
   <div class="err-msg" id="errMsg"></div>
 
@@ -97,6 +110,32 @@
 
   let currentTgUrl = '';
   let currentLevel = 0;
+  let timerInterval = null;
+  let timerStart = 0;
+  const EXPECTED_MS = 90000; // ~90s expected max for progress bar
+
+  function startTimer() {
+    timerStart = Date.now();
+    document.getElementById('timerBox').style.display = 'flex';
+    document.getElementById('timerBarWrap').style.display = 'block';
+    timerInterval = setInterval(() => {
+      const elapsed = Date.now() - timerStart;
+      const s = Math.floor(elapsed / 1000);
+      const mm = String(Math.floor(s / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      document.getElementById('timerValue').textContent = `${mm}:${ss}`;
+      const pct = Math.min((elapsed / EXPECTED_MS) * 100, 95);
+      document.getElementById('timerBar').style.width = pct + '%';
+    }, 500);
+  }
+
+  function stopTimer(success) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    document.getElementById('timerBar').style.width = success ? '100%' : '0%';
+    document.getElementById('timerBar').style.background = success
+      ? 'var(--success)' : 'var(--error)';
+  }
 
   function setLevel(n) {
     currentLevel = n;
@@ -137,7 +176,9 @@
     document.getElementById('result').style.display = 'none';
     document.getElementById('errMsg').style.display = 'none';
     document.getElementById('statusText').textContent = 'Starting browser automation…';
+    document.getElementById('timerBar').style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
     setLevel(1);
+    startTimer();
 
     const encoded = encodeURIComponent(url);
     const evtSource = new EventSource(`/api/bypass?url=${encoded}`);
@@ -162,12 +203,14 @@
           document.getElementById('badge').textContent = '✓ Telegram link captured';
           document.getElementById('result').style.display = 'block';
           document.getElementById('statusText').textContent = 'Complete!';
-          setLevel(5); // all done
+          setLevel(5);
           for (let i = 1; i <= 4; i++) document.getElementById('s'+i).className = 'step done';
+          stopTimer(true);
         } else {
           document.getElementById('errMsg').textContent = '⚠️ ' + (msg.data.message || 'Could not extract Telegram URL. Check the log below.');
           document.getElementById('errMsg').style.display = 'block';
           document.getElementById('statusText').textContent = 'Failed.';
+          stopTimer(false);
         }
       }
 
@@ -178,6 +221,7 @@
         document.getElementById('errMsg').textContent = '⚠️ ' + msg.data;
         document.getElementById('errMsg').style.display = 'block';
         document.getElementById('statusText').textContent = 'Error.';
+        stopTimer(false);
       }
     };
 
@@ -187,6 +231,7 @@
       btn.textContent = 'Bypass';
       document.getElementById('errMsg').textContent = '⚠️ Connection lost to server.';
       document.getElementById('errMsg').style.display = 'block';
+      stopTimer(false);
     };
   }
 

@@ -140,13 +140,17 @@ async function bypass(url, onLog) {
       // After the form submit, wait for the URL base to change AND next level widget to appear
       // (Google vignette ads add #google_vignette to the URL without a real navigation)
       const baseUrl = page.url().split('#')[0];
+      const isShortxHost = (hostname) =>
+        hostname.includes('linkshortx') || hostname.includes('urlshortx');
+
       try {
         await page.waitForFunction(
           (base) => {
             const newBase = window.location.href.split('#')[0];
+            const h = window.location.hostname;
             return newBase !== base && (
               document.querySelector('.start_btn') !== null ||
-              window.location.hostname.includes('linkshortx')
+              h.includes('linkshortx') || h.includes('urlshortx')
             );
           },
           { timeout: 60000 },
@@ -175,9 +179,10 @@ async function bypass(url, onLog) {
         await page.waitForFunction(
           (base) => {
             const newBase = window.location.href.split('#')[0];
+            const h = window.location.hostname;
             return newBase !== base && (
               document.querySelector('.start_btn') !== null ||
-              window.location.hostname.includes('linkshortx')
+              h.includes('linkshortx') || h.includes('urlshortx')
             );
           },
           { timeout: 45000 },
@@ -189,15 +194,15 @@ async function bypass(url, onLog) {
 
       log(`After level ${i}: ${curUrl}`);
 
-      if (curUrl.includes('linkshortx.in')) {
-        log('Landed on linkshortx.in!');
+      if (isShortxHost(new URL(curUrl).hostname)) {
+        log(`Landed on ${new URL(curUrl).hostname}!`);
         break;
       }
     }
 
-    // Wait for linkshortx.in page with Get Link button
+    // Wait for the shortx Get Link page (linkshortx.in or urlshortx.io)
     await page.waitForFunction(
-      () => window.location.hostname.includes('linkshortx'),
+      () => window.location.hostname.includes('linkshortx') || window.location.hostname.includes('urlshortx'),
       { timeout: 40000 }
     );
 
