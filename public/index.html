@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Link Bypasser</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+      --accent: #6c63ff; --accent2: #a78bfa;
+      --success: #22c55e; --error: #ef4444; --warn: #f59e0b;
+      --text: #e2e8f0; --muted: #8892a4;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 16px; }
+    .hero { text-align: center; margin-bottom: 36px; }
+    .logo { font-size: 2.4rem; margin-bottom: 6px; }
+    h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #6c63ff, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; }
+    .sub { color: var(--muted); font-size: 0.9rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 700px; }
+    .row { display: flex; gap: 10px; }
+    input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.95rem; padding: 12px 16px; outline: none; transition: border-color .2s; }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+    button.primary { background: var(--accent); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 600; padding: 12px 24px; transition: background .2s, transform .1s; white-space: nowrap; }
+    button.primary:hover { background: #5a52e0; }
+    button.primary:active { transform: scale(.97); }
+    button.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+    /* Steps progress */
+    .steps { display: flex; gap: 6px; margin-top: 20px; }
+    .step { flex: 1; height: 6px; border-radius: 3px; background: var(--border); transition: background .4s; }
+    .step.active { background: var(--accent2); }
+    .step.done { background: var(--success); }
+    /* Log box */
+    .log-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 16px; max-height: 220px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.82rem; color: var(--muted); display: none; }
+    .log-box .line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .log-box .line:last-child { border: none; }
+    /* Result */
+    .result { margin-top: 20px; display: none; }
+    .result-label { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+    .tg-box { background: var(--bg); border: 1px solid #3b82f6; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+    .tg-box a { color: #60a5fa; font-size: .9rem; word-break: break-all; flex: 1; text-decoration: none; }
+    .tg-box a:hover { text-decoration: underline; }
+    button.copy { background: var(--border); border: none; border-radius: 6px; color: var(--muted); cursor: pointer; font-size: .75rem; padding: 5px 12px; white-space: nowrap; transition: background .2s, color .2s; }
+    button.copy:hover { background: var(--accent); color: #fff; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; font-size: .8rem; font-weight: 600; padding: 4px 14px; margin-bottom: 14px; }
+    .badge.ok { background: rgba(34,197,94,.15); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+    .badge.err { background: rgba(239,68,68,.15); color: var(--error); border: 1px solid rgba(239,68,68,.3); }
+    .err-msg { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; color: var(--error); padding: 12px 16px; font-size: .9rem; margin-top: 16px; display: none; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-text { color: var(--muted); font-size: .85rem; margin-top: 12px; min-height: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo">🔗</div>
+  <h1>Link Bypasser</h1>
+  <p class="sub">Auto-clicks through all 4 hindisink.com levels and extracts your Telegram link</p>
+</div>
+
+<div class="card">
+  <div class="row">
+    <input id="urlInput" type="text" placeholder="Paste linkshortx.in URL here…" autocomplete="off" />
+    <button class="primary" id="goBtn" onclick="start()">Bypass</button>
+  </div>
+
+  <!-- 4-level progress bar -->
+  <div class="steps" id="steps" style="display:none">
+    <div class="step" id="s1"></div>
+    <div class="step" id="s2"></div>
+    <div class="step" id="s3"></div>
+    <div class="step" id="s4"></div>
+  </div>
+
+  <p class="status-text" id="statusText"></p>
+
+  <div class="log-box" id="logBox"></div>
+  <div class="err-msg" id="errMsg"></div>
+
+  <div class="result" id="result">
+    <hr class="divider" />
+    <span class="badge ok" id="badge">✓ Done</span>
+    <div class="result-label">Telegram Link</div>
+    <div class="tg-box">
+      <a id="tgLink" href="#" target="_blank" rel="noopener"></a>
+      <button class="copy" onclick="doCopy()">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const input = document.getElementById('urlInput');
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+
+  let currentTgUrl = '';
+  let currentLevel = 0;
+
+  function setLevel(n) {
+    currentLevel = n;
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById('s' + i);
+      el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    }
+  }
+
+  function addLog(msg) {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+
+    // Detect level from log message
+    const m = msg.match(/Level (\d)/);
+    if (m) setLevel(parseInt(m[1]));
+    if (msg.toLowerCase().includes('all 4 levels')) setLevel(4);
+    if (msg.toLowerCase().includes('telegram')) {
+      document.getElementById('statusText').textContent = 'Telegram URL captured!';
+    }
+  }
+
+  async function start() {
+    const url = input.value.trim();
+    if (!url) return;
+
+    const btn = document.getElementById('goBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Running…';
+
+    document.getElementById('steps').style.display = 'flex';
+    document.getElementById('logBox').style.display = 'block';
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('errMsg').style.display = 'none';
+    document.getElementById('statusText').textContent = 'Starting browser automation…';
+    setLevel(1);
+
+    const encoded = encodeURIComponent(url);
+    const evtSource = new EventSource(`/api/bypass?url=${encoded}`);
+
+    evtSource.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'log') {
+        addLog(msg.data);
+        document.getElementById('statusText').textContent = msg.data;
+      }
+
+      if (msg.type === 'result') {
+        evtSource.close();
+        btn.disabled = false;
+        btn.textContent = 'Bypass';
+
+        if (msg.data.telegramUrl) {
+          currentTgUrl = msg.data.telegramUrl;
+          document.getElementById('tgLink').href = currentTgUrl;
+          document.getElementById('tgLink').textContent = currentTgUrl;
+          document.getElementById('badge').textContent = '✓ Telegram link captured';
+          document.getElementById('result').style.display = 'block';
+          document.getElementById('statusText').textContent = 'Complete!';
+          setLevel(5); // all done
+          for (let i = 1; i <= 4; i++) document.getElementById('s'+i).className = 'step done';
+        } else {
+          document.getElementById('errMsg').textContent = '⚠️ ' + (msg.data.message || 'Could not extract Telegram URL. Check the log below.');
+          document.getElementById('errMsg').style.display = 'block';
+          document.getElementById('statusText').textContent = 'Failed.';
+        }
+      }
+
+      if (msg.type === 'error') {
+        evtSource.close();
+        btn.disabled = false;
+        btn.textContent = 'Bypass';
+        document.getElementById('errMsg').textContent = '⚠️ ' + msg.data;
+        document.getElementById('errMsg').style.display = 'block';
+        document.getElementById('statusText').textContent = 'Error.';
+      }
+    };
+
+    evtSource.onerror = () => {
+      evtSource.close();
+      btn.disabled = false;
+      btn.textContent = 'Bypass';
+      document.getElementById('errMsg').textContent = '⚠️ Connection lost to server.';
+      document.getElementById('errMsg').style.display = 'block';
+    };
+  }
+
+  function doCopy() {
+    navigator.clipboard.writeText(currentTgUrl).then(() => {
+      const btn = document.querySelector('button.copy');
+      btn.textContent = 'Copied!';
+      btn.style.background = '#22c55e';
+      btn.style.color = '#fff';
+      setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = ''; btn.style.color = ''; }, 1800);
+    });
+  }
+</script>
+</body>
+</html>
