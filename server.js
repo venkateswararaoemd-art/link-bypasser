@@ -4,7 +4,13 @@ const { bypass } = require('./bypass');
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// When packaged with pkg, __dirname is a virtual snapshot path; serve from real disk instead
+const isPackaged = typeof process.pkg !== 'undefined';
+const publicDir = isPackaged
+  ? path.join(path.dirname(process.execPath), 'public')
+  : path.join(__dirname, 'public');
+app.use(express.static(publicDir));
 
 // SSE endpoint — streams live logs + final result to the browser
 app.get('/api/bypass', async (req, res) => {

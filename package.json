@@ -2,13 +2,29 @@
   "name": "link-bypasser",
   "version": "1.0.0",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node build.js"
+  },
+  "pkg": {
+    "targets": [
+      "node20-win-x64"
+    ],
+    "outputPath": "dist",
+    "assets": [
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/**/*",
+      "node_modules/puppeteer-extra-plugin-stealth/esm/**/*",
+      "node_modules/puppeteer-extra/**/*"
+    ]
   },
   "dependencies": {
     "express": "^4.18.2",
     "puppeteer": "^22.15.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^5.16.1"
   }
 }

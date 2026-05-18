@@ -1,3 +1,4 @@
+const path = require('path');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -68,8 +69,15 @@ async function runLevel(page, levelNum, log) {
 async function bypass(url, onLog) {
   const log = onLog || console.log;
 
+  // When packaged with pkg, use the Chromium bundled next to the .exe
+  const isPackaged = typeof process.pkg !== 'undefined';
+  const chromiumExe = isPackaged
+    ? path.join(path.dirname(process.execPath), 'chromium', 'chrome.exe')
+    : undefined;
+
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath: chromiumExe,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -78,6 +86,8 @@ async function bypass(url, onLog) {
   });
 
   let telegramUrl = null;
+  let resolveTelegram;
+  const telegramReady = new Promise(r => { resolveTelegram = r; });
 
   try {
     const page = await browser.newPage();
@@ -106,6 +116,7 @@ async function bypass(url, onLog) {
       if (u.startsWith('https://t.me/') || u.startsWith('tg://')) {
         telegramUrl = u;
         log(`Telegram URL captured: ${u}`);
+        resolveTelegram?.();
         req.abort();
         return;
       }
@@ -261,11 +272,8 @@ async function bypass(url, onLog) {
       if (btn) { btn.scrollIntoView({ block: 'center' }); btn.click(); }
     });
 
-    // Poll until the request interceptor captures the Telegram URL (max 10s)
-    await new Promise(resolve => {
-      const t = setInterval(() => { if (telegramUrl) { clearInterval(t); resolve(); } }, 200);
-      setTimeout(() => { clearInterval(t); resolve(); }, 10000);
-    });
+    // Wait until the request interceptor captures the Telegram URL (max 10s)
+    await Promise.race([telegramReady, new Promise(r => setTimeout(r, 10000))]);
 
     // Fallback: scan DOM for t.me links (excluding the support channel in the nav)
     if (!telegramUrl) {
